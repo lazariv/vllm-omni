@@ -1274,7 +1274,7 @@ class OpenAIFullDuplexConnection:
         if active is None:
             await self._send_error(
                 "No response is in progress",
-                "invalid_request_error",
+                "response_cancel_not_active",
                 event_id=event.event_id,
             )
             return
@@ -1282,7 +1282,7 @@ class OpenAIFullDuplexConnection:
         if response_id is not None and response_id != active.response_id:
             await self._send_error(
                 f"Response '{response_id}' is not in progress",
-                "invalid_request_error",
+                "response_cancel_not_active",
                 event_id=event.event_id,
             )
             return

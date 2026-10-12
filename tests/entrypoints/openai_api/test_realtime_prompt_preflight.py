@@ -754,3 +754,26 @@ async def test_rejected_response_create_does_not_cancel_active_response() -> Non
     assert not connection._response_cancel_event.is_set()
     assert len(websocket.messages) == 1
     assert "exceeds the model's input token limit" in websocket.messages[0]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("active_response_id", [None, "resp_active"])
+async def test_cancel_without_matching_active_response_uses_openai_error_code(active_response_id: str | None) -> None:
+    websocket = _FakeWebSocket()
+    connection, _ = _make_connection(websocket=websocket)
+    if active_response_id is not None:
+        connection.session.active_response = SimpleNamespace(
+            response_id=active_response_id, request_id=f"rt-{active_response_id}"
+        )
+
+    await connection._handle_response_cancel(
+        types.ResponseCancelEvent(type="response.cancel", event_id="evt_cancel", response_id="resp_finished")
+    )
+
+    (event,) = _websocket_events(websocket)
+    assert event["type"] == "error"
+    assert event["error"]["code"] == "response_cancel_not_active"
+    assert event["error"]["event_id"] == "evt_cancel"
+    if active_response_id is not None:
+        assert connection.session.active_response.response_id == active_response_id
+        assert not connection._response_cancel_event.is_set()
